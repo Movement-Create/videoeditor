@@ -29,6 +29,7 @@ import {
   type X264Preset,
 } from "~/lib/render-settings";
 import { computeExportFingerprint } from "~/lib/render-fingerprint";
+import { getObjectStorageConfig } from "~/lib/object-storage";
 
 const execFileAsync = promisify(execFile);
 const { Pool } = pkg;
@@ -37,19 +38,11 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.resolve(scriptDir, "../../.env");
 dotenv.config({ path: envPath });
 
-// ─── R2 client (S3-compatible) ───────────────────────────────────────────────
-
-const r2 = new S3Client({
-  region: "auto",
-  endpoint: `https://${process.env.R2_ACCOUNT_ID!.trim()}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-});
-
-const ASSETS_BUCKET = process.env.R2_ASSETS_BUCKET!;
-const RENDERS_BUCKET = process.env.R2_RENDERS_BUCKET!;
+// Retain existing R2 deployments; allow a separately configured S3-compatible store.
+const storage = getObjectStorageConfig(process.env);
+const r2 = new S3Client(storage.client);
+const ASSETS_BUCKET = storage.assetsBucket;
+const RENDERS_BUCKET = storage.rendersBucket;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_ASSET_UPLOAD_BYTES = 500 * 1024 * 1024;
 
